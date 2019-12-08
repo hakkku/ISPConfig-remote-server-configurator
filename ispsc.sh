@@ -3,20 +3,6 @@ DOMINIO=$1
 IP=$2
 
 
-#### conseguimos todos los datos necesarios para laburar
-IP_DAYTONA="200.68.105.130"
-USUARIO_MYSQL="brunod"
-CLAVE_MYSQL="Zfjh3c1z_"
-
-NOMBRE_CLIENTE=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL -h ${IP_DAYTONA} daytona2 -se "select cli.cli_nombre from CLIENTEPLANES as clip, cliente as cli, VPS as v where clip.idClientesPlanes=v.idClientesPlanes and clip.cli_codigo=cli.cli_codigo and v.dominio='${DOMINIO}';")
-EMAIL1=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL -h ${IP_DAYTONA} daytona2 -se "SELECT cli.cli_email FROM CLIENTEPLANES as clip, cliente as cli, VPS as v where clip.idClientesPlanes=v.idClientesPlanes and clip.cli_codigo=cli.cli_codigo and v.dominio='${DOMINIO}';")
-EMAIL2=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL -h ${IP_DAYTONA} daytona2 -se "SELECT cli.cli_email2 FROM CLIENTEPLANES as clip, cliente as cli, VPS as v where clip.idClientesPlanes=v.idClientesPlanes and clip.cli_codigo=cli.cli_codigo and v.dominio='${DOMINIO}';")
-USUARIO=`echo $DOMINIO | cut -d"." -f1`
-PASSW=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1`
-ADMIN="ally"
-DISPONIBILIDADIP=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "select estado from PoolIP where dirIP='${IP}';")
-
-
 crearuser() 
 {
 	IP="$1"
@@ -26,25 +12,7 @@ crearuser()
         DOMINIO="$5"
         USUARIO="$6"
         PASSW="$7"
-	DISPONIBILIDADIP="$8"
 	ADMIN="$9"
-
-
-
-
-	
-	if [ "$DISPONIBILIDADIP" == "" ]
-	then
-		mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "insert into PoolIP(dirIP,estado,tipo) values ('${IP}','O','VIR');"
-	fi
-	#### conseguimos el id del ip 
-	IDIP=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "select idIP from PoolIP where dirIP='${IP}';")
-	#### chequeamos si esta cargado en la lista relacional de vps e ip, a veces no estan anda a saber porque
-	VPSIP=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "select 1 from VPSIP where idIP='${IDIP}';")
-	IDVPS=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "select idVPS from VPS where dominio='${DOMINIO}';")
-		mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "update VPSIP set idIP='${IDIP}' where idVPS='${IDVPS}'"
-		mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "update PoolIP set estado='O' where idIP='${IDIP}';"
-	
 
 
 	#### logueamos en el ispconfig en cuestion (el servidor ya tiene que estar levantado y con internechi)
@@ -52,15 +20,15 @@ crearuser()
 	
 	
 	#### plasmamos la informacion en el json
-	sed -i '/contact_name/c\"contact_name":"'"$NOMBRE_CLIENTE"'",' datos.json
-	sed -i '/username/c\"username":"'"$USUARIO"'",' datos.json
-	sed -i '/password/c\"password":"'"$PASSW"'",' datos.json
-	sed -i '/email/c\"email":"'"$EMAIL1"'",' datos.json
-	sed -i '/session_id/c\"session_id":'"$SESSIONID"',' datos.json
+	sed -i '/contact_name/c\"contact_name":"'"$NOMBRE_CLIENTE"'",' data.json
+	sed -i '/username/c\"username":"'"$USUARIO"'",' data.json
+	sed -i '/password/c\"password":"'"$PASSW"'",' data.json
+	sed -i '/email/c\"email":"'"$EMAIL1"'",' data.json
+	sed -i '/session_id/c\"session_id":'"$SESSIONID"',' data.json
 	
 	
 	#### creamos el usuario del cliente en ISPCONFIG
-	IDUSUARIO=`curl -s --header "Content-Type: application/json" --insecure --request POST --data-binary @datos.json https://$IP:82/remote/json.php?client_add | grep "ok" | cut -d'"' -f12`
+	IDUSUARIO=`curl -s --header "Content-Type: application/json" --insecure --request POST --data-binary @data.json https://$IP:82/remote/json.php?client_add | grep "ok" | cut -d'"' -f12`
 
 	if [ ! $IDUSUARIO == "" ]
         then
@@ -112,14 +80,6 @@ crearuser()
                 echo "no pude dar de alta el dominio de correo en el panel!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         fi	
 
-
-
-	#### cargamos los datos en la tabla mail_vps en el daytona para despues mandar el mail
-	mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "insert into mail_vps(ip,dominio,usuario,password,admin) values ('${IP}','${DOMINIO}','${USUARIO}','${PASSW}','${ADMIN}');"
-	
-
-		
-
 	exit 0
 }
 
@@ -132,7 +92,6 @@ cambiardatos()
         DOMINIO="$5"
         USUARIO="$6"
         PASSW="$7"
-	DISPONIBILIDADIP="$8"
 	ADMIN="$9"
 	echo ""
 	echo "======== que queres cambiar? =========="
@@ -170,7 +129,7 @@ cambiardatos()
 	esac
 	echo ""
 	echo ""
-	confirmardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$DISPONIBILIDADIP" "$ADMIN"
+	confirmardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$ADMIN"
 }
 
 confirmardatos()
@@ -182,7 +141,6 @@ confirmardatos()
 	DOMINIO=$5
 	USUARIO=$6
 	PASSW=$7
-	DISPONIBILIDADIP=$8
 	ADMIN=$9	
 
 	echo "======================================="
@@ -190,16 +148,15 @@ confirmardatos()
 	printf "     Mail 2  |$EMAIL2\n" | column -t -s "|"
 	printf "     Dominio |$DOMINIO\n     Usuario |$USUARIO\n" | column -t -s "|"
 	printf "     Password|$PASSW\n" | column -t -s "|"
-	printf "     Admin   |$ADMIN\n" | column -t -s "|"
 	echo "======================================="
 	echo "Voy a usar estos datos para dar de alta el VPS, Estas de acuerdo?"
 	read -p "[Y/N]" SIONO
 	case $SIONO in
 	y|Y)
-		crearuser "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$DISPONIBILIDADIP" "$ADMIN"
+		crearuser "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$ADMIN"
 	;;
 	n|N)
-		cambiardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$DISPONIBILIDADIP" "$ADMIN"
+		cambiardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$ADMIN"
 	;;
 	*)
 		echo "dale macho, es apretar las teclas [Y] o [N]..."
@@ -217,35 +174,21 @@ confirmardatos()
 #### chequeamos la validez de la ip
 if [[ $IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
 then
-
-
-        RANGO=`echo $IP | cut -d"." -f1,2,3`
-
-        ##### definimos el subdominio del hostname
-        if [ ! "$RANGO" == "200.68.105" ] && [ ! "$RANGO" == "190.210.162" ] && [ ! "$RANGO" == "190.210.198" ] && [ ! "$RANGO" == "190.210.196" ]
-        then
-                echo "no reconozco el rango $RANGO como uno dentro de Allytech. Si estas seguro que es correcto, por favor llamalo a Oliver"
-                exit 0
-        fi
+	echo ""
 else
 	echo "me parece que $IP no es una ip"
 	exit 0
 fi
 
+##definimos los datos necesarios para crear todo
+PASSW=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1`
+ADMIN="Administrator"
+USUARIO=`echo $DOMINIO | cut -d"." -f1`
+NOMBRE_CLIENTE=$USUARIO
+EMAIL1="info@$DOMINIO"
+EMAIL2="admin@$DOMINIO"
 
-HAYDOMINIO=$(mysql -u$USUARIO_MYSQL -p$CLAVE_MYSQL daytona2 -h${IP_DAYTONA} -se "select 1 from VPS where dominio='${DOMINIO}';")
-if [ ! "$HAYDOMINIO" == "1" ]
-then
-        echo "no estaria encontrando el dominio $DOMINIO en el daytona. Por favor chequea ese dato y probemos de nuevo"
-        exit 0
-fi
 
-if [ "$DISPONIBILIDADIP" == "O" ]
-then
-	echo "che mira que la ip $IP me figura que ya esta ocupada en el daytona. Por favor asegurate de que figure como disponible y probemos de nuevo"
-	exit 0
-fi
-
-confirmardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$DISPONIBILIDADIP" "$ADMIN"
+confirmardatos "$IP" "$NOMBRE_CLIENTE" "$EMAIL1" "$EMAIL2" "$DOMINIO" "$USUARIO" "$PASSW" "$ADMIN"
 
 
